@@ -8,20 +8,20 @@
 import Foundation
 
 public enum RobustiveError: Error {
-    enum Interaction<T: Usecase, U: Actor>: LocalizedError {
+    public enum Interaction<T: Usecase, U: Actor>: LocalizedError {
         case notAuthorized(usecase: T, actor: U)
         
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
             case let .notAuthorized(usecase, actor): return "The usecase '\(usecase)' is not authorized the actor '\(actor)'."
             }
         }
     }
     
-    enum System: LocalizedError {
+    public enum System: LocalizedError {
         case error(causedBy: Error)
         
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
             case let .error(causedBy): return "The system error is occurred: '\(causedBy.localizedDescription)'."
             }
