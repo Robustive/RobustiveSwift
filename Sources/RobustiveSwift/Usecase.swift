@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 public protocol Scenes {
+    associatedtype UsecaseActor : Actor
     associatedtype Basics
     associatedtype Alternatives
     associatedtype Goals
@@ -18,13 +19,13 @@ public protocol Scenario : Scenes {
     init()
     
     /// 引数で渡されたActorがこのユースケースを実行できるかを返します。
-    func authorize<T>(_ actor: T, toInteract usease: Usecase<Self>) throws -> Bool where T : Actor
+    func authorize(_ actor: UsecaseActor, toInteract usease: Usecase<Self>) throws -> Bool
     
     /// 引数で渡されたSceneを次のSceneとして返します。
     func just(next: Usecase<Self>) -> AnyPublisher<Usecase<Self>, Error>
     
     /// 自身が表すユースケースのSceneを実行した結果として、次のSceneがあれば次のSceneを返すFutureを、ない（シナリオの最後の）場合には nil を返します。
-    func next(to currentScene: Usecase<Self>) -> AnyPublisher<Usecase<Self>, Error>?
+    func next(to currentScene: Usecase<Self>, by actor: UsecaseActor) -> AnyPublisher<Usecase<Self>, Error>
 }
 
 extension Scenario {
@@ -47,11 +48,11 @@ public enum Usecase<S: Scenario> {
     // 最後のシーン（＝Boundary）
     case last(scene: S.Goals)
     
-    private func recursive<T>(_ actor: T, scenario: [Self]) -> AnyPublisher<[Self], Error> where T : Actor {
+    private func recursive(_ actor: S.UsecaseActor, scenario: [Self]) -> AnyPublisher<[Self], Error> {
         guard let lastScene = scenario.last else { fatalError() }
         
         // 終了条件
-        guard let future = S().next(to: lastScene) else {
+        if case .last = lastScene {
             return Deferred {
                 Future<[Self], Error> { promise in
                     promise(.success(scenario))
@@ -60,6 +61,8 @@ public enum Usecase<S: Scenario> {
             .receive(on: DispatchQueue.main) // sink後の処理はメインスレッドで行われるようにする
             .eraseToAnyPublisher()
         }
+        
+        let future = S().next(to: lastScene, by: actor)
         
         // 再帰呼び出し
         return future
@@ -72,7 +75,7 @@ public enum Usecase<S: Scenario> {
     }
     
     /// Actorに準拠するクラスのインスタンスを引数に取り、再帰的にnext()を実行します。
-    public func interacted<T: Actor>(by actor: T) -> AnyPublisher<[Self], Error> {
+    public func interacted(by actor: S.UsecaseActor) -> AnyPublisher<[Self], Error> {
         // 権限確認
         do {
             guard try S().authorize(actor, toInteract: self) else {
@@ -87,7 +90,7 @@ public enum Usecase<S: Scenario> {
         return self.recursive(actor, scenario: [self])
     }
     
-    public func interacted<T: Actor>(by actor: T, receiveCompletion: ((Subscribers.Completion<Error>) -> Void)? = nil, receiveValue: @escaping ((S.Goals, [Self]) -> Void)) -> AnyCancellable {
+    public func interacted(by actor: S.UsecaseActor, receiveCompletion: ((Subscribers.Completion<Error>) -> Void)? = nil, receiveValue: @escaping ((S.Goals, [Self]) -> Void)) -> AnyCancellable {
         return self.interacted(by: actor)
             .sink { completion in
                 if case .failure(let error) = completion {
@@ -105,7 +108,7 @@ public enum Usecase<S: Scenario> {
     }
     
     /// 実行したユースケースの名前、アクター名、通ったシナリオ（シーン名配列）のタプルを返します。
-    public func readable<T: Actor>(_ scenario: [Self], interactedBy actor: T) -> (String, String, [String]) {
+    public func readable(_ scenario: [Self], interactedBy actor: S.UsecaseActor) -> (String, String, [String]) {
         return ("\(S.self)", "\(actor.userType)", scenario.map { scene in
             switch scene {
             case let .basic(scene):
