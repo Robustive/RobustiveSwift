@@ -1,5 +1,5 @@
 //
-//  Usecase.swift
+//  Scene.swift
 //  
 //
 //  Created by 斉藤  祐輔 on 2023/04/03.
@@ -19,20 +19,20 @@ public protocol Scenario : Scenes {
     init()
     
     /// 引数で渡されたActorがこのユースケースを実行できるかを返します。
-    func authorize(_ actor: UsecaseActor, toInteract usease: Usecase<Self>) throws -> Bool
+    func authorize(_ actor: UsecaseActor, toInteract usease: Scene<Self>) throws -> Bool
     
     /// 引数で渡されたSceneを次のSceneとして返します。
-    func just(next: Usecase<Self>) -> AnyPublisher<Usecase<Self>, Error>
+    func just(next: Scene<Self>) -> AnyPublisher<Scene<Self>, Error>
     
     /// 自身が表すユースケースのSceneを実行した結果として、次のSceneがあれば次のSceneを返すFutureを、ない（シナリオの最後の）場合には nil を返します。
-    func next(to currentScene: Usecase<Self>, by actor: UsecaseActor) -> AnyPublisher<Usecase<Self>, Error>
+    func next(to currentScene: Scene<Self>, by actor: UsecaseActor) -> AnyPublisher<Scene<Self>, Error>
 }
 
 extension Scenario {
     
-    public func just(next: Usecase<Self>) -> AnyPublisher<Usecase<Self>, Error> {
+    public func just(next: Scene<Self>) -> AnyPublisher<Scene<Self>, Error> {
         return Deferred {
-            Future<Usecase<Self>, Error> { promise in
+            Future<Scene<Self>, Error> { promise in
                 promise(.success(next))
             }
         }
@@ -40,7 +40,7 @@ extension Scenario {
     }
 }
 
-public enum Usecase<S: Scenario> {
+public enum Scene<S: Scenario> {
     // 晴れの日コースのシーン
     case basic(scene: S.Basics)
     // 雨の日コースのシーン
