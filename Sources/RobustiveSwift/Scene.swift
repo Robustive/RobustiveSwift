@@ -19,7 +19,7 @@ public protocol Scenario : Scenes {
     init()
     
     /// 引数で渡されたActorがこのユースケースを実行できるかを返します。
-    func authorize(_ actor: UsecaseActor, toInteract usease: Scene<Self>) throws -> Bool
+    func authorize(_ actor: UsecaseActor, toInteract: Scene<Self>) throws -> Bool
     
     /// 引数で渡されたSceneを次のSceneとして返します。
     func just(next: Scene<Self>) -> AnyPublisher<Scene<Self>, Error>
